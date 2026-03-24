@@ -1,12 +1,12 @@
-#ifndef HASH_EXTENSIVEL_H
-#define HASH_EXTENSIVEL_H
+#ifndef HASH_H
+#define HASH_H
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
 
 /**
- * @file hash_extensivel.h
+ * @file hash.h
  * @brief Módulo para manipulação de um arquivo de Hash Extensível.
  * * Este módulo gerencia o armazenamento persistente de dados em disco, 
  * permitindo o crescimento dinâmico da estrutura através do desdobramento
@@ -14,6 +14,7 @@
  */
 
 typedef struct stHashExtensivel* HashExtensivel;
+
 
 /**
  * @brief Inicializa a estrutura de Hash Extensível.
