@@ -1,6 +1,8 @@
 #ifndef HASH_H
 #define HASH_H
 
+#define TAM_MAX_VALOR 256
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
