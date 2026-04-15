@@ -1,0 +1,1 @@
+/*ê o .qry linha a linha e despacha cada comando (rq, pq, censo, h?, nasc, rip, mud, dspj) chamando as funções dos outros módulos.*/

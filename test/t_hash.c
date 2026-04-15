@@ -1,4 +1,5 @@
 
+//hash_extensivel/test/testeHash.c
 
 #include "unity/src/unity.h"
 #include "hash.h"
@@ -31,10 +32,7 @@ void tearDown(void) {
     remove(FILENAME);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
- * Inserção básica
- * ═══════════════════════════════════════════════════════════════════════════*/
-
+// ===================== inserir ==========================
 /* Inserir um inteiro e buscar pelo mesmo valor */
 void inserir_e_buscar_inteiro(void) {
     int v = 42;
@@ -77,9 +75,7 @@ void inserir_multiplos_e_buscar_todos(void) {
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
- * Chaves duplicadas
- * ═══════════════════════════════════════════════════════════════════════════*/
+// ======================= Chaves duplicadas ========================
 
 /* Segunda inserção com a mesma chave deve retornar false */
 void chave_duplicada_rejeitada(void) {
@@ -101,9 +97,7 @@ void duplicata_nao_sobrescreve_valor(void) {
     free(res);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
- * Remoção
- * ═══════════════════════════════════════════════════════════════════════════*/
+// ==================== Remoção ==================
 
 /* Remover um dado existente deve retornar true */
 void remover_existente_retorna_true(void) {
@@ -165,10 +159,7 @@ void remover_nao_afeta_vizinhos(void) {
     int *rc = procurarHash(map, 12, &s); TEST_ASSERT_NOT_NULL(rc); free(rc);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
- * Casos extremos de chave
- * ═══════════════════════════════════════════════════════════════════════════*/
-
+// ================= casos extremos de chave ==================
 /* Chave zero deve ser aceita e recuperada normalmente */
 void chave_zero_valida(void) {
     int v = 55;
@@ -193,9 +184,7 @@ void chave_maxima_valida(void) {
     free(res);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
- * Limite de payload
- * ═══════════════════════════════════════════════════════════════════════════*/
+// =============limite de payload =============
 
 /* Payload exatamente no limite deve ser aceito */
 void payload_no_limite_aceito(void) {
@@ -224,9 +213,8 @@ void payload_acima_do_limite_rejeitado(void) {
     TEST_ASSERT_NULL(res);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
- * Busca em hash vazio
- * ═══════════════════════════════════════════════════════════════════════════*/
+ // Busca em hash vazio
+ 
 
 void buscar_em_hash_vazio_retorna_null(void) {
     size_t s;
@@ -234,10 +222,7 @@ void buscar_em_hash_vazio_retorna_null(void) {
     TEST_ASSERT_NULL(res);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
- * Split / crescimento dinâmico
- * ═══════════════════════════════════════════════════════════════════════════*/
-
+// ========== Split / crescimento dinâmico ===================
 /* Inserção massiva que força vários splits; nenhum dado pode ser perdido */
 void split_massivo_sem_perda(void) {
     for (uint64_t i = 0; i < 500; i++) {
@@ -276,10 +261,7 @@ void split_chaves_com_mesmo_sufixo(void) {
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
- * Persistência
- * ═══════════════════════════════════════════════════════════════════════════*/
-
+// ======================= Persistência ================
 /* Dado inserido antes de destruirHash deve ser encontrado após reabrir */
 void dado_persiste_apos_reabrir(void) {
     int v = 33;
@@ -330,9 +312,7 @@ void remocao_persiste_apos_reabrir(void) {
     TEST_ASSERT_NULL_MESSAGE(res, "Dado removido nao deve reaparecer apos reabrir");
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
- * main
- * ═══════════════════════════════════════════════════════════════════════════*/
+// =============== main ==========================
 int main(void) {
     UNITY_BEGIN();
 
@@ -367,3 +347,4 @@ int main(void) {
 
     return UNITY_END();
 }
+

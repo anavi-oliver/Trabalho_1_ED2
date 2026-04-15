@@ -1,3 +1,5 @@
+
+//hash_extensivel/include/hash.h
 #ifndef HASH_H
 #define HASH_H
 
@@ -38,6 +40,14 @@ HashExtensivel inicializarHash(const char *nomeArquivo, int tamBucket, void (*de
 bool inserirHash(HashExtensivel hash, uint64_t chave, void *valor, size_t tamValor);
 
 /**
+ * @brief Itera sobre todos os registros válidos do hashfile.
+ * @param hash  Ponteiro para o Hash Extensível.
+ * @param cb    Callback chamado para cada entrada: (chave, valor, tam, ctx).
+ * @param ctx   Contexto opaco repassado ao callback (pode ser NULL).
+ */
+void iterarHash(HashExtensivel hash, void (*cb)(uint64_t chave, void *valor, size_t tam, void *ctx), void *ctx);
+
+/**
  * @brief Procura por um dado no arquivo através da sua chave.
  * @param hash Ponteiro para o Hash Extensivel.
  * @param chave Chave de busca.
@@ -45,6 +55,19 @@ bool inserirHash(HashExtensivel hash, uint64_t chave, void *valor, size_t tamVal
  * @return Retorna um ponteiro para o dado encontrado ou NULL se não existir.
  */
 void *procurarHash(HashExtensivel hash, uint64_t chave, size_t *tamRetornado);
+
+/**
+ * @brief Atualiza o valor de uma chave existente.
+ * @return true se a chave existia e foi atualizada; false se não encontrada.
+ */
+bool atualizarHash(HashExtensivel hash, uint64_t chave, void *novoValor, size_t novoTam);
+
+/**
+ * @brief Gera dump textual do hashfile (para o arquivo .hfd).
+ * @param saida         Arquivo de saída (aberto para escrita).
+ * @param imprimirValor Callback que formata um valor em texto; pode ser NULL.
+ */
+void imprimirHash(HashExtensivel hash, FILE *saida, void (*imprimirValor)(FILE *saida, void *valor, size_t tam));
 
 /**
  * @brief Remove um dado do Hash e libera o espaço no bucket.

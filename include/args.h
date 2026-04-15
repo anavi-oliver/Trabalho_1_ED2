@@ -1,0 +1,1 @@
+//  parsing dos parâmetros de linha de comando (-e, -f, -o, -q, -pm)

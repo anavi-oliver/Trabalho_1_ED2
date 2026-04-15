@@ -1,0 +1,1 @@
+/* cola tudo: processa args, abre os hashfiles, chama o leitor do .geo, do .pm, e por fim o processador do .qry. Fecha tudo e gera o .svg final.*/
