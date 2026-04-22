@@ -1,4 +1,4 @@
-//hash_extensivel/src/hash.c
+// src/hash.c
 
 #include <stdio.h>
 #include <stdint.h>
@@ -6,12 +6,24 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "hash.h"
 
-// fazer para iterarHash atualizarHash, imprimirHash 
+/*
+ * LAYOUT DO ARQUIVO EM DISCO
+ * ──────────────────────────
+ *  Bytes 0..7          : long trailerOffset  — ponteiro para o cabeçalho
+ *  Bytes 8..N          : buckets (posições fixas; nunca movidos)
+ *  Bytes trailerOffset : int  profglobal
+ *                        long diretorio[2^profglobal]
+ *
+ * O cabeçalho fica SEMPRE no final (trailer). Quando o diretório dobra,
+ * o novo cabeçalho é appendado e o ponteiro nos primeiros 8 bytes é
+ * atualizado. Buckets nunca são afetados pelo crescimento do cabeçalho.
+ */
 
-// ─────────────────────── structs ────────────────────────────────────────────
+// ─────────────────────── structs internas ───────────────────────────────────
 
 typedef struct {
     uint64_t chave;
@@ -23,9 +35,10 @@ typedef struct {
 typedef struct {
     int       proflocal;
     int       cont;
-    Registro *registro; // array de tamanho tamBucket (apenas em RAM)
+    Registro *registro;
 } Bucket;
 
+//struct real
 struct stHashExtensivel {
     int    profglobal;
     long  *diretorio;
@@ -34,29 +47,28 @@ struct stHashExtensivel {
     FILE  *arquivo;
 };
 
-// ─────────────────────── helpers de bucket ──────────────────────────────────
+// ─────────────────────── helpers de I/O ─────────────────────────────────────
 
-static uint64_t pegarIndice(uint64_t chave, int profundidade) {
-    return chave & ((1ULL << profundidade) - 1);
+static uint64_t pegarIndice(uint64_t chave, int prof) {
+    return chave & ((1ULL << prof) - 1);
 }
 
-static void salvarBucket(FILE *arquivo, long offset, Bucket *b, int tamBucket) {
-    fseek(arquivo, offset, SEEK_SET);
-    fwrite(&b->proflocal, sizeof(int),      1,         arquivo);
-    fwrite(&b->cont,      sizeof(int),      1,         arquivo);
-    fwrite(b->registro,   sizeof(Registro), tamBucket, arquivo);
+static void salvarBucket(FILE *f, long offset, Bucket *b, int tamBucket) {
+    fseek(f, offset, SEEK_SET);
+    fwrite(&b->proflocal, sizeof(int),      1,         f);
+    fwrite(&b->cont,      sizeof(int),      1,         f);
+    fwrite(b->registro,   sizeof(Registro), tamBucket, f);
 }
 
-static Bucket *lerBucket(FILE *arquivo, long offset, int tamBucket) {
+static Bucket *lerBucket(FILE *f, long offset, int tamBucket) {
     Bucket *b = malloc(sizeof(Bucket));
     if (!b) return NULL;
     b->registro = calloc(tamBucket, sizeof(Registro));
     if (!b->registro) { free(b); return NULL; }
-
-    fseek(arquivo, offset, SEEK_SET);
-    fread(&b->proflocal, sizeof(int),      1,         arquivo);
-    fread(&b->cont,      sizeof(int),      1,         arquivo);
-    fread(b->registro,   sizeof(Registro), tamBucket, arquivo);
+    fseek(f, offset, SEEK_SET);
+    fread(&b->proflocal, sizeof(int),      1,         f);
+    fread(&b->cont,      sizeof(int),      1,         f);
+    fread(b->registro,   sizeof(Registro), tamBucket, f);
     return b;
 }
 
@@ -66,96 +78,74 @@ static void liberarBucketRAM(Bucket *b) {
     free(b);
 }
 
-// ─────────────────────── helper de cabeçalho (trailer) ──────────────────────
+static void salvarTrailer(struct stHashExtensivel *self) {
+    fseek(self->arquivo, 0, SEEK_END);
+    long trailerOffset = ftell(self->arquivo);
 
-/*
- * Anexa profglobal + diretório no fim do arquivo e atualiza o ponteiro
- * nos primeiros 8 bytes. Chamado após qualquer mudança no diretório.
- */
-static void salvarCabecalho(HashExtensivel hash) {
-    /* Vai para o fim do arquivo para anexar o novo cabeçalho */
-    fseek(hash->arquivo, 0, SEEK_END);
-    long trailerOffset = ftell(hash->arquivo);
+    int numEntradas = 1 << self->profglobal;
+    fwrite(&self->profglobal, sizeof(int),  1,           self->arquivo);
+    fwrite(self->diretorio,   sizeof(long), numEntradas, self->arquivo);
 
-    int numEntradas = 1 << hash->profglobal;
-    fwrite(&hash->profglobal, sizeof(int),  1,           hash->arquivo);
-    fwrite(hash->diretorio,   sizeof(long), numEntradas, hash->arquivo);
-
-    /* Atualiza o ponteiro nos primeiros 8 bytes */
-    fseek(hash->arquivo, 0, SEEK_SET);
-    fwrite(&trailerOffset, sizeof(long), 1, hash->arquivo);
-
-    fflush(hash->arquivo);
+    fseek(self->arquivo, 0, SEEK_SET);
+    fwrite(&trailerOffset, sizeof(long), 1, self->arquivo);
+    fflush(self->arquivo);
 }
 
 // ─────────────────────── split ──────────────────────────────────────────────
 
-static void dividirBucket(HashExtensivel hash,
+static void dividirBucket(struct stHashExtensivel *self,
                            uint64_t chave_causadora,
-                           long     offset_b_antigo,
+                           long     offset_antigo,
                            Bucket  *b_antigo)
 {
-    /* Dobra o diretório se necessário */
-    if (b_antigo->proflocal == hash->profglobal) {
-        int tam_antigo = 1 << hash->profglobal;
-        hash->diretorio = realloc(hash->diretorio,
-                                  2 * tam_antigo * sizeof(long));
-        for (int i = 0; i < tam_antigo; i++)
-            hash->diretorio[i + tam_antigo] = hash->diretorio[i];
-        hash->profglobal++;
+    if (b_antigo->proflocal == self->profglobal) {
+        int tam = 1 << self->profglobal;
+        self->diretorio = realloc(self->diretorio, 2 * tam * sizeof(long));
+        for (int i = 0; i < tam; i++)
+            self->diretorio[i + tam] = self->diretorio[i];
+        self->profglobal++;
     }
 
-    /* Cria o novo bucket em RAM */
-    Bucket *b_novo = malloc(sizeof(Bucket));
+    Bucket *b_novo    = malloc(sizeof(Bucket));
     b_novo->proflocal = b_antigo->proflocal + 1;
     b_novo->cont      = 0;
-    b_novo->registro  = calloc(hash->tamBucket, sizeof(Registro));
-
+    b_novo->registro  = calloc(self->tamBucket, sizeof(Registro));
     b_antigo->proflocal++;
 
-    /* Redistribui registros */
-    Registro *temp  = b_antigo->registro;
-    b_antigo->registro = calloc(hash->tamBucket, sizeof(Registro));
+    Registro *tmp      = b_antigo->registro;
+    b_antigo->registro = calloc(self->tamBucket, sizeof(Registro));
     b_antigo->cont     = 0;
 
-    uint64_t mascara_bit = 1ULL << (b_antigo->proflocal - 1);
-
-    for (int i = 0; i < hash->tamBucket; i++) {
-        if (!temp[i].ocupado) continue;
-        Bucket *dest = (temp[i].chave & mascara_bit) ? b_novo : b_antigo;
-        for (int j = 0; j < hash->tamBucket; j++) {
+    uint64_t bit = 1ULL << (b_antigo->proflocal - 1);
+    for (int i = 0; i < self->tamBucket; i++) {
+        if (!tmp[i].ocupado) continue;
+        Bucket *dest = (tmp[i].chave & bit) ? b_novo : b_antigo;
+        for (int j = 0; j < self->tamBucket; j++) {
             if (!dest->registro[j].ocupado) {
-                dest->registro[j] = temp[i];
+                dest->registro[j] = tmp[i];
                 dest->cont++;
                 break;
             }
         }
     }
-    free(temp);
+    free(tmp);
 
-    /* Salva o novo bucket ANTES de salvar o cabeçalho, para que o offset
-       calculado pelo SEEK_END já inclua o novo bucket. */
-    fseek(hash->arquivo, 0, SEEK_END);
-    long offset_b_novo = ftell(hash->arquivo);
-    salvarBucket(hash->arquivo, offset_b_novo, b_novo, hash->tamBucket);
+    fseek(self->arquivo, 0, SEEK_END);
+    long offset_novo = ftell(self->arquivo);
+    salvarBucket(self->arquivo, offset_novo,   b_novo,   self->tamBucket);
+    salvarBucket(self->arquivo, offset_antigo, b_antigo, self->tamBucket);
 
-    /* Sobrescreve o bucket antigo (mesma posição, apenas conteúdo mudou) */
-    salvarBucket(hash->arquivo, offset_b_antigo, b_antigo, hash->tamBucket);
+    int      profAntes   = b_novo->proflocal - 1;
+    uint64_t mascAntes   = (1ULL << profAntes) - 1;
+    uint64_t padrao      = chave_causadora & mascAntes;
+    int      numEntradas = 1 << self->profglobal;
 
-    /* Atualiza o diretório em RAM */
-    int      proflocal_anterior = b_novo->proflocal - 1;
-    uint64_t mascara_antiga     = (1ULL << proflocal_anterior) - 1;
-    uint64_t padrao_antigo      = chave_causadora & mascara_antiga;
-    int      num_entradas       = 1 << hash->profglobal;
-
-    for (int i = 0; i < num_entradas; i++) {
-        if ((i & mascara_antiga) != padrao_antigo) continue;
-        hash->diretorio[i] = (i & mascara_bit) ? offset_b_novo : offset_b_antigo;
+    for (int i = 0; i < numEntradas; i++) {
+        if ((i & mascAntes) != padrao) continue;
+        self->diretorio[i] = (i & bit) ? offset_novo : offset_antigo;
     }
 
-    /* Persiste o cabeçalho como trailer — nunca sobrescreve buckets */
-    salvarCabecalho(hash);
-
+    salvarTrailer(self);
     liberarBucketRAM(b_novo);
 }
 
@@ -165,71 +155,100 @@ HashExtensivel inicializarHash(const char *nomeArquivo,
                                int         tamBucket,
                                void (*destruirValor)(void *))
 {
-    HashExtensivel hash = malloc(sizeof(struct stHashExtensivel));
-    if (!hash) return NULL;
+    struct stHashExtensivel *self = malloc(sizeof(struct stHashExtensivel));
+    if (!self) return NULL;
 
-    hash->tamBucket     = tamBucket;
-    hash->destruirValor = destruirValor;
-    hash->profglobal    = 1;
-    hash->diretorio     = malloc((1 << 1) * sizeof(long));
+    self->tamBucket     = tamBucket;
+    self->destruirValor = destruirValor;
+    self->profglobal    = 1;
+    self->diretorio     = malloc(2 * sizeof(long));
 
-    hash->arquivo = fopen(nomeArquivo, "r+b");
+    self->arquivo = fopen(nomeArquivo, "r+b");
 
-    if (!hash->arquivo) {
-        /* ── arquivo novo ── */
-        hash->arquivo = fopen(nomeArquivo, "w+b");
-        if (!hash->arquivo) { free(hash->diretorio); free(hash); return NULL; }
+    if (!self->arquivo) {
+        self->arquivo = fopen(nomeArquivo, "w+b");
+        if (!self->arquivo) { free(self->diretorio); free(self); return NULL; }
 
-        /* Reserva 8 bytes para o trailer pointer (ainda sem valor real) */
         long placeholder = 0;
-        fwrite(&placeholder, sizeof(long), 1, hash->arquivo);
+        fwrite(&placeholder, sizeof(long), 1, self->arquivo);
 
-        /* Escreve os 2 buckets iniciais a partir do byte 8 */
-        int numBuckets = 1 << hash->profglobal;
-        for (int i = 0; i < numBuckets; i++) {
-            fseek(hash->arquivo, 0, SEEK_END);
-            hash->diretorio[i] = ftell(hash->arquivo);
-
+        for (int i = 0; i < 2; i++) {
+            fseek(self->arquivo, 0, SEEK_END);
+            self->diretorio[i] = ftell(self->arquivo);
             Bucket *b    = malloc(sizeof(Bucket));
             b->proflocal = 1;
             b->cont      = 0;
             b->registro  = calloc(tamBucket, sizeof(Registro));
-            salvarBucket(hash->arquivo, hash->diretorio[i], b, tamBucket);
+            salvarBucket(self->arquivo, self->diretorio[i], b, tamBucket);
             liberarBucketRAM(b);
         }
 
-        /* Cabeçalho vai para o trailer — trailer pointer é atualizado */
-        salvarCabecalho(hash);
+        salvarTrailer(self);
 
     } else {
-        /* ── arquivo existente ── */
-        fseek(hash->arquivo, 0, SEEK_SET);
-
-        /* Lê o trailer pointer */
         long trailerOffset = 0;
-        fread(&trailerOffset, sizeof(long), 1, hash->arquivo);
+        fseek(self->arquivo, 0, SEEK_SET);
+        fread(&trailerOffset, sizeof(long), 1, self->arquivo);
 
-        /* Vai até o cabeçalho e lê profglobal + diretório */
-        fseek(hash->arquivo, trailerOffset, SEEK_SET);
-        fread(&hash->profglobal, sizeof(int), 1, hash->arquivo);
+        fseek(self->arquivo, trailerOffset, SEEK_SET);
+        fread(&self->profglobal, sizeof(int), 1, self->arquivo);
 
-        int numBuckets = 1 << hash->profglobal;
-        hash->diretorio = realloc(hash->diretorio, numBuckets * sizeof(long));
-        fread(hash->diretorio, sizeof(long), numBuckets, hash->arquivo);
+        int numEntradas = 1 << self->profglobal;
+        self->diretorio = realloc(self->diretorio, numEntradas * sizeof(long));
+        fread(self->diretorio, sizeof(long), numEntradas, self->arquivo);
     }
 
-    return hash;
+    return self;
+}
+
+bool inserirHash(HashExtensivel hash, uint64_t chave, void *valor, size_t tamValor) {
+    struct stHashExtensivel *self = hash;
+    if (tamValor > TAM_MAX_VALOR) return false;
+
+    uint64_t indice = pegarIndice(chave, self->profglobal);
+    long     offset = self->diretorio[indice];
+
+    Bucket *b = lerBucket(self->arquivo, offset, self->tamBucket);
+    if (!b) return false;
+
+    for (int i = 0; i < self->tamBucket; i++) {
+        if (b->registro[i].ocupado && b->registro[i].chave == chave) {
+            liberarBucketRAM(b);
+            return false;
+        }
+    }
+
+    if (b->cont < self->tamBucket) {
+        for (int i = 0; i < self->tamBucket; i++) {
+            if (b->registro[i].ocupado) continue;
+            b->registro[i].chave   = chave;
+            b->registro[i].tam     = tamValor;
+            b->registro[i].ocupado = true;
+            memcpy(b->registro[i].valor, valor, tamValor);
+            b->cont++;
+            break;
+        }
+        salvarBucket(self->arquivo, offset, b, self->tamBucket);
+        liberarBucketRAM(b);
+        return true;
+    }
+
+    dividirBucket(self, chave, offset, b);
+    liberarBucketRAM(b);
+    return inserirHash(hash, chave, valor, tamValor);
 }
 
 void *procurarHash(HashExtensivel hash, uint64_t chave, size_t *tamRetornado) {
-    uint64_t indice = pegarIndice(chave, hash->profglobal);
-    long     offset = hash->diretorio[indice];
+    struct stHashExtensivel *self = hash;
 
-    Bucket *b = lerBucket(hash->arquivo, offset, hash->tamBucket);
+    uint64_t indice = pegarIndice(chave, self->profglobal);
+    long     offset = self->diretorio[indice];
+
+    Bucket *b = lerBucket(self->arquivo, offset, self->tamBucket);
     if (!b) return NULL;
 
     void *resultado = NULL;
-    for (int i = 0; i < hash->tamBucket; i++) {
+    for (int i = 0; i < self->tamBucket; i++) {
         if (b->registro[i].ocupado && b->registro[i].chave == chave) {
             *tamRetornado = b->registro[i].tam;
             resultado     = malloc(*tamRetornado);
@@ -242,15 +261,44 @@ void *procurarHash(HashExtensivel hash, uint64_t chave, size_t *tamRetornado) {
     return resultado;
 }
 
-bool removerHash(HashExtensivel hash, uint64_t chave) {
-    uint64_t indice = pegarIndice(chave, hash->profglobal);
-    long     offset = hash->diretorio[indice];
+bool atualizarHash(HashExtensivel hash, uint64_t chave,
+                   void *novoValor, size_t novoTam)
+{
+    struct stHashExtensivel *self = hash;
+    if (novoTam > TAM_MAX_VALOR) return false;
 
-    Bucket *b = lerBucket(hash->arquivo, offset, hash->tamBucket);
+    uint64_t indice = pegarIndice(chave, self->profglobal);
+    long     offset = self->diretorio[indice];
+
+    Bucket *b = lerBucket(self->arquivo, offset, self->tamBucket);
+    if (!b) return false;
+
+    bool ok = false;
+    for (int i = 0; i < self->tamBucket; i++) {
+        if (!b->registro[i].ocupado || b->registro[i].chave != chave) continue;
+        memset(b->registro[i].valor, 0, TAM_MAX_VALOR);
+        memcpy(b->registro[i].valor, novoValor, novoTam);
+        b->registro[i].tam = novoTam;
+        ok = true;
+        break;
+    }
+
+    if (ok) salvarBucket(self->arquivo, offset, b, self->tamBucket);
+    liberarBucketRAM(b);
+    return ok;
+}
+
+bool removerHash(HashExtensivel hash, uint64_t chave) {
+    struct stHashExtensivel *self = hash;
+
+    uint64_t indice = pegarIndice(chave, self->profglobal);
+    long     offset = self->diretorio[indice];
+
+    Bucket *b = lerBucket(self->arquivo, offset, self->tamBucket);
     if (!b) return false;
 
     bool removido = false;
-    for (int i = 0; i < hash->tamBucket; i++) {
+    for (int i = 0; i < self->tamBucket; i++) {
         if (!b->registro[i].ocupado || b->registro[i].chave != chave) continue;
         memset(b->registro[i].valor, 0, TAM_MAX_VALOR);
         b->registro[i].ocupado = false;
@@ -260,59 +308,110 @@ bool removerHash(HashExtensivel hash, uint64_t chave) {
         break;
     }
 
-    if (removido)
-        salvarBucket(hash->arquivo, offset, b, hash->tamBucket);
-
+    if (removido) salvarBucket(self->arquivo, offset, b, self->tamBucket);
     liberarBucketRAM(b);
     return removido;
 }
 
-bool inserirHash(HashExtensivel hash, uint64_t chave, void *valor, size_t tamValor) {
-    if (tamValor > TAM_MAX_VALOR) return false;
+void iterarHash(HashExtensivel hash,
+                void (*cb)(uint64_t chave, void *valor, size_t tam, void *ctx),
+                void *ctx)
+{
+    struct stHashExtensivel *self = hash;
+    if (!self || !cb) return;
 
-    uint64_t indice = pegarIndice(chave, hash->profglobal);
-    long     offset = hash->diretorio[indice];
+    int   numEntradas  = 1 << self->profglobal;
+    long *visitados    = calloc(numEntradas, sizeof(long));
+    int   numVisitados = 0;
 
-    Bucket *b = lerBucket(hash->arquivo, offset, hash->tamBucket);
-    if (!b) return false;
+    for (int i = 0; i < numEntradas; i++) {
+        long offset = self->diretorio[i];
 
-    /* Rejeita chave duplicada */
-    for (int i = 0; i < hash->tamBucket; i++) {
-        if (b->registro[i].ocupado && b->registro[i].chave == chave) {
-            liberarBucketRAM(b);
-            return false;
+        bool jaVisto = false;
+        for (int v = 0; v < numVisitados; v++) {
+            if (visitados[v] == offset) { jaVisto = true; break; }
         }
-    }
+        if (jaVisto) continue;
+        visitados[numVisitados++] = offset;
 
-    if (b->cont < hash->tamBucket) {
-        for (int i = 0; i < hash->tamBucket; i++) {
-            if (b->registro[i].ocupado) continue;
-            b->registro[i].chave   = chave;
-            b->registro[i].tam     = tamValor;
-            b->registro[i].ocupado = true;
-            memcpy(b->registro[i].valor, valor, tamValor);
-            b->cont++;
-            break;
+        Bucket *b = lerBucket(self->arquivo, offset, self->tamBucket);
+        if (!b) continue;
+
+        for (int j = 0; j < self->tamBucket; j++) {
+            if (!b->registro[j].ocupado) continue;
+            void *copia = malloc(b->registro[j].tam);
+            memcpy(copia, b->registro[j].valor, b->registro[j].tam);
+            cb(b->registro[j].chave, copia, b->registro[j].tam, ctx);
         }
-        salvarBucket(hash->arquivo, offset, b, hash->tamBucket);
+
         liberarBucketRAM(b);
-        return true;
     }
 
-    /* Bucket cheio → split e tenta de novo */
-    dividirBucket(hash, chave, offset, b);
-    liberarBucketRAM(b);
-    return inserirHash(hash, chave, valor, tamValor);
+    free(visitados);
+}
+
+void imprimirHash(HashExtensivel hash, FILE *saida,
+                  void (*imprimirValor)(FILE *saida, void *valor, size_t tam))
+{
+    struct stHashExtensivel *self = hash;
+    if (!self || !saida) return;
+
+    int numEntradas = 1 << self->profglobal;
+    fprintf(saida, "profglobal: %d\n", self->profglobal);
+
+    for (int i = 0; i < numEntradas; i++)
+        fprintf(saida, "  diretorio[%3d] -> offset %ld\n", i, self->diretorio[i]);
+    fprintf(saida, "\n");
+
+    long *visitados    = calloc(numEntradas, sizeof(long));
+    int   numVisitados = 0;
+
+    for (int i = 0; i < numEntradas; i++) {
+        long offset = self->diretorio[i];
+
+        bool jaVisto = false;
+        for (int v = 0; v < numVisitados; v++) {
+            if (visitados[v] == offset) { jaVisto = true; break; }
+        }
+        if (jaVisto) continue;
+        visitados[numVisitados++] = offset;
+
+        Bucket *b = lerBucket(self->arquivo, offset, self->tamBucket);
+        if (!b) continue;
+
+        fprintf(saida,
+                "--- bucket @ offset %-8ld  (proflocal=%d, ocupados=%d/%d) ---\n",
+                offset, b->proflocal, b->cont, self->tamBucket);
+
+        for (int j = 0; j < self->tamBucket; j++) {
+            if (!b->registro[j].ocupado) continue;
+            fprintf(saida, "  [slot %d] chave=%" PRIu64 "  tam=%zu  ",
+                    j, b->registro[j].chave, b->registro[j].tam);
+
+            if (imprimirValor) {
+                imprimirValor(saida, b->registro[j].valor, b->registro[j].tam);
+            } else {
+                size_t lim = b->registro[j].tam < 16 ? b->registro[j].tam : 16;
+                for (size_t k = 0; k < lim; k++)
+                    fprintf(saida, "%02x ", b->registro[j].valor[k]);
+                if (b->registro[j].tam > 16) fprintf(saida, "...");
+            }
+            fprintf(saida, "\n");
+        }
+
+        liberarBucketRAM(b);
+    }
+
+    free(visitados);
 }
 
 void destruirHash(HashExtensivel hash) {
-    if (!hash) return;
-
-    if (hash->arquivo) {
-        salvarCabecalho(hash); /* Persiste o estado final como trailer */
-        fclose(hash->arquivo);
+    struct stHashExtensivel *self = hash;
+    if (!self) return;
+    if (self->arquivo) {
+        salvarTrailer(self);
+        fclose(self->arquivo);
     }
-
-    free(hash->diretorio);
-    free(hash);
+    free(self->diretorio);
+    free(self);
 }
