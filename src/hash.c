@@ -17,13 +17,9 @@
  *  Bytes 8..N          : buckets (posições fixas; nunca movidos)
  *  Bytes trailerOffset : int  profglobal
  *                        long diretorio[2^profglobal]
- *
- * O cabeçalho fica SEMPRE no final (trailer). Quando o diretório dobra,
- * o novo cabeçalho é appendado e o ponteiro nos primeiros 8 bytes é
- * atualizado. Buckets nunca são afetados pelo crescimento do cabeçalho.
  */
 
-// ─────────────────────── structs internas ───────────────────────────────────
+// ================ structs internas ===============*/
 
 typedef struct {
     uint64_t chave;
@@ -47,7 +43,7 @@ struct stHashExtensivel {
     FILE  *arquivo;
 };
 
-// ─────────────────────── helpers de I/O ─────────────────────────────────────
+//  helpers de I/O 
 
 static uint64_t pegarIndice(uint64_t chave, int prof) {
     return chave & ((1ULL << prof) - 1);
@@ -91,7 +87,7 @@ static void salvarTrailer(struct stHashExtensivel *self) {
     fflush(self->arquivo);
 }
 
-// ─────────────────────── split ──────────────────────────────────────────────
+//  split 
 
 static void dividirBucket(struct stHashExtensivel *self,
                            uint64_t chave_causadora,
@@ -149,7 +145,7 @@ static void dividirBucket(struct stHashExtensivel *self,
     liberarBucketRAM(b_novo);
 }
 
-// ─────────────────────── API pública ────────────────────────────────────────
+//API pública 
 
 HashExtensivel inicializarHash(const char *nomeArquivo,
                                int         tamBucket,
