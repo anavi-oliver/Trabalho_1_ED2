@@ -1,26 +1,24 @@
-//pq face? simplificar stdint
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <stdbool.h>
 
+#include "unity/src/unity.h"
 #include "pessoas.h"
 
 typedef struct {
     char   cpf[16];
     char   nome[64];
     char   sobrenome[64];
-    char   sexo;
     char   nasc[12];
-    bool   morador;
     char   cep[32];
-    char   face;
-    double num;
     char   compl[32];
+    char   sexo;
+    char   face;
+    char   morador;   // 0 = sem-teto, 1 = morador; parece q nao precisa ser bool
+    double num;
 } Pessoa;
 
-// conversão CPF → chave 
+/* conversão CPF → chave  */
 uint64_t cpfParaChave(const char *cpf) {
     uint64_t resultado = 0;
     for (const char *p = cpf; *p; p++) {
@@ -30,7 +28,7 @@ uint64_t cpfParaChave(const char *cpf) {
     return resultado;
 }
 
-// leitura do .pm 
+/* leitura do .pm  */
 int lerPm(const char *caminhoPm, HashExtensivel hashPessoas) {
     FILE *f = fopen(caminhoPm, "r");
     if (!f) return -1;
@@ -50,7 +48,7 @@ int lerPm(const char *caminhoPm, HashExtensivel hashPessoas) {
                        p.cpf, p.nome, p.sobrenome, sexoStr, p.nasc) != 5)
                 continue;
             p.sexo = sexoStr[0];
-            p.morador = false;
+            p.morador = 0;
             inserirHash(hashPessoas, cpfParaChave(p.cpf), &p, sizeof(Pessoa));
             inseridos++;
 
@@ -68,7 +66,7 @@ int lerPm(const char *caminhoPm, HashExtensivel hashPessoas) {
     return inseridos;
 }
 
-//operações CRUD 
+/* operações CRUD  */
 size_t tamPessoa(void) {
     return sizeof(Pessoa);
 }
@@ -97,7 +95,7 @@ bool inserirHabitante(HashExtensivel hashPessoas,
     strncpy(p.sobrenome, sobrenome, sizeof(p.sobrenome) - 1);
     p.sexo = sexo;
     strncpy(p.nasc, nasc, sizeof(p.nasc) - 1);
-    p.morador = false;
+    p.morador = 0;
     return inserirHash(hashPessoas, cpfParaChave(cpf), &p, sizeof(Pessoa));
 }
 
@@ -111,14 +109,14 @@ bool atribuirEndereco(HashExtensivel hashPessoas,
     strncpy(p.compl, compl, sizeof(p.compl) - 1);
     p.face    = face;
     p.num     = num;
-    p.morador = true;
+    p.morador = 1;
     return atualizarHash(hashPessoas, cpfParaChave(cpf), &p, sizeof(Pessoa));
 }
 
 bool removerEndereco(HashExtensivel hashPessoas, const char *cpf) {
     Pessoa p;
     if (!buscarPessoa(hashPessoas, cpf, &p, NULL)) return false;
-    p.morador = false;
+    p.morador = 0;
     memset(p.cep,   0, sizeof(p.cep));
     memset(p.compl, 0, sizeof(p.compl));
     p.face = '\0';
@@ -130,7 +128,7 @@ bool removerPessoa(HashExtensivel hashPessoas, const char *cpf) {
     return removerHash(hashPessoas, cpfParaChave(cpf));
 }
 
-//contagem por face 
+/* contagem por face */
 typedef struct {
     const char *cep;
     int n, nN, nS, nL, nO;
@@ -152,7 +150,8 @@ static void cbContar(uint64_t chave, void *valor, size_t tam, void *ctx) {
     free(valor);
 }
 
-int contarMoradoresPorFace(HashExtensivel hashPessoas, const char *cep, int *nN, int *nS, int *nL, int *nO)
+int contarMoradoresPorFace(HashExtensivel hashPessoas, const char *cep,
+                           int *nN, int *nS, int *nL, int *nO)
 {
     CtxContar c = { cep, 0, 0, 0, 0, 0 };
     iterarHash(hashPessoas, cbContar, &c);
@@ -163,7 +162,7 @@ int contarMoradoresPorFace(HashExtensivel hashPessoas, const char *cep, int *nN,
     return c.n;
 }
 
-// acessores 
+/* acessores */
 const char *pessoaGetCpf      (const void *p){ return ((const Pessoa *)p)->cpf;       }
 const char *pessoaGetNome     (const void *p){ return ((const Pessoa *)p)->nome;      }
 const char *pessoaGetSobrenome(const void *p){ return ((const Pessoa *)p)->sobrenome; }

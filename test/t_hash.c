@@ -1,15 +1,12 @@
-
-//hash_extensivel/test/testeHash.c
-
-#include "unity/src/unity.h"
-#include "hash.h"
-
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
+#include "unity/src/unity.h"
+#include "hash.h"
 
 #define TAM_BUCKET 4
 #define FILENAME   "test_hash.dat"
@@ -312,7 +309,12 @@ void remocao_persiste_apos_reabrir(void) {
     TEST_ASSERT_NULL_MESSAGE(res, "Dado removido nao deve reaparecer apos reabrir");
 }
 
-// =============== main ==========================
+
+
+
+
+
+// ================================= MAIN =============================================
 int main(void) {
     UNITY_BEGIN();
 
