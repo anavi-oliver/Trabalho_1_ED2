@@ -54,10 +54,7 @@ typedef void *CtxQry;
  * @param txtSaida     Arquivo TXT de saída (já aberto para escrita).
  * @return Handle alocado, ou NULL em caso de falha.
  */
-CtxQry criarCtxQry(HashExtensivel hashQuadras,
-                   HashExtensivel hashPessoas,
-                   ArqSvg         svgSaida,
-                   FILE          *txtSaida);
+CtxQry criarCtxQry(HashExtensivel hashQuadras,HashExtensivel hashPessoas,ArqSvg svgSaida,FILE *txtSaida);
 
 /** @brief Libera o handle (não fecha os recursos internos). */
 void destruirCtxQry(CtxQry ctx);

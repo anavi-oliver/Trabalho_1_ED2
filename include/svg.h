@@ -42,10 +42,7 @@ void fecharSvg(ArqSvg svg);
  * @param sw                 Espessura da borda (stroke-width).
  * @param corFill, corStroke Cores de preenchimento e borda (nomes CSS).
  */
-void svgQuadra(ArqSvg svg,
-               double x, double y, double w, double h,
-               double sw,
-               const char *corFill, const char *corStroke);
+void svgQuadra(ArqSvg svg, double x, double y, double w, double h, double sw, const char *corFill, const char *corStroke);
 
 /**
  * @brief Escreve um <text> no SVG.

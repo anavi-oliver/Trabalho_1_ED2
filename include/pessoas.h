@@ -46,8 +46,7 @@ size_t tamPessoa(void);
  * @brief Busca uma pessoa pelo CPF e copia o bloco serializado para out.
  * @return 1 se encontrada, 0 caso contrário.
  */
-int buscarPessoa(HashExtensivel hashPessoas, const char *cpf,
-                 void *out, size_t *outTam);
+int buscarPessoa(HashExtensivel hashPessoas, const char *cpf, void *out, size_t *outTam);
 
 /**
  * @brief Cria e insere um novo habitante (ainda sem endereço).
