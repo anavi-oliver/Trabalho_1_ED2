@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,8 +12,6 @@ struct stCtxQry {
     ArqSvg         svgSaida;
     FILE          *txtSaida;
 };
-
-
 
 CtxQry criarCtxQry(HashExtensivel hashQuadras, HashExtensivel hashPessoas,
                    ArqSvg svgSaida, FILE *txtSaida)
@@ -39,7 +36,6 @@ typedef struct { const char *cep; struct stCtxQry *c; } CtxRq;
 static void cbRq(uint64_t chave, void *valor, size_t tam, void *ctx) {
     (void)chave; (void)tam;
     CtxRq *r = ctx;
-    /* Para cada morador da quadra removida: imprime e remove endereço */
     if (pessoaIsMorador(valor) &&
         strcmp(pessoaGetCep(valor), r->cep) == 0)
     {
@@ -174,6 +170,9 @@ void cmdH(const char *cpf, CtxQry ctx) {
                 pessoaGetNum(buf), pessoaGetCompl(buf));
     else
         fprintf(c->txtSaida, "  sem-teto\n");
+
+    /* Badge lateral de habitante consultado */
+    svgBadgeHab(c->svgSaida, cpf);
 }
 
 /* nasc  */
@@ -211,6 +210,9 @@ void cmdRip(const char *cpf, CtxQry ctx) {
                 pessoaGetCep(buf), pessoaGetFace(buf),
                 pessoaGetNum(buf), pessoaGetCompl(buf));
     }
+
+    /* Badge lateral de falecimento */
+    svgBadgeRip(c->svgSaida, cpf);
 
     removerPessoa(c->hashPessoas, cpf);
 }
@@ -258,10 +260,13 @@ void cmdDspj(const char *cpf, CtxQry ctx) {
         svgMarcaCirculo(c->svgSaida, cx, cy);
     }
 
+    /* Badge lateral de despejo */
+    svgBadgeOut(c->svgSaida, cpf);
+
     removerEndereco(c->hashPessoas, cpf);
 }
 
-//processarQry 
+/* processarQry  */
 int processarQry(const char *caminhoQry, CtxQry ctx) {
     struct stCtxQry *c = ctx;
     FILE *f = fopen(caminhoQry, "r");
@@ -269,7 +274,6 @@ int processarQry(const char *caminhoQry, CtxQry ctx) {
 
     char linha[512];
     while (fgets(linha, sizeof(linha), f)) {
-        /* Remove newline para o echo */
         linha[strcspn(linha, "\n")] = '\0';
         if (linha[0] == '\0') continue;
 

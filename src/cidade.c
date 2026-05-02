@@ -1,5 +1,3 @@
-//!!!simplificar
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +29,6 @@ int lerGeo(const char *caminhoGeo, HashExtensivel hashQuadras) {
     FILE *f = fopen(caminhoGeo, "r");
     if (!f) return -1;
 
-    /* Cores/espessura padrão, alteradas pelo comando 'cq' */
     double swPad = 1.0;
     char   fillPad[32]   = "white";
     char   strokePad[32] = "black";
@@ -65,12 +62,13 @@ int lerGeo(const char *caminhoGeo, HashExtensivel hashQuadras) {
     return inseridos;
 }
 
-// callback para desenharQuadras
+// callback para desenharQuadras — agora passa o CEP
 static void cbDesenhar(uint64_t chave, void *valor, size_t tam, void *ctx) {
     (void)chave; (void)tam;
     Quadra *q  = valor;
     ArqSvg svg = ctx;
-    svgQuadra(svg, q->x, q->y, q->w, q->h, q->sw, q->corFill, q->corStroke);
+    svgQuadra(svg, q->x, q->y, q->w, q->h, q->sw,
+              q->corFill, q->corStroke, q->cep);
     free(valor); /* iterarHash entrega cópia alocada */
 }
 
@@ -78,7 +76,7 @@ void desenharQuadras(HashExtensivel hashQuadras, ArqSvg svg) {
     iterarHash(hashQuadras, cbDesenhar, svg);
 }
 
-//busca / remoção
+// busca / remoção
 int buscarQuadra(HashExtensivel hashQuadras, const char *cep,
                  void *out, size_t *outTam)
 {
@@ -99,7 +97,7 @@ size_t tamQuadra(void) {
     return sizeof(Quadra);
 }
 
-//  acessores  
+// acessores  
 const char *quadraGetCep    (const void *q) { return ((const Quadra *)q)->cep;      }
 double      quadraGetX      (const void *q) { return ((const Quadra *)q)->x;        }
 double      quadraGetY      (const void *q) { return ((const Quadra *)q)->y;        }
