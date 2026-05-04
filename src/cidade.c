@@ -54,7 +54,9 @@ int lerGeo(const char *caminhoGeo, HashExtensivel hashQuadras) {
             inseridos++;
 
         } else if (strcmp(cmd, "cq") == 0) {
-            sscanf(linha, "%*s %lf %31s %31s", &swPad, fillPad, strokePad);
+            char swStr[16];
+            if (sscanf(linha, "%*s %15s %31s %31s", swStr, fillPad, strokePad) == 3)
+                swPad = atof(swStr); /* atof ignora sufixo "px" automaticamente */
         }
     }
 
