@@ -3,16 +3,9 @@
 
 #include "svg.h"
 
-/*
- * Layout do SVG:
- *   Mapa de quadras em coordenadas positivas (tipicamente 0..~1200 x 0..~1000).
- *   Badges OUT/RIP/HAB no CANTO SUPERIOR DIREITO, à direita do mapa.
- *   <svg> declarado com width e height grandes para não cortar nada.
- */
 #define SVG_WIDTH      3000.0
 #define SVG_HEIGHT     2000.0
 
-/* Área dos badges: canto superior direito (após mapa típico ~1200px) */
 #define BADGE_AREA_X   1250.0
 #define BADGE_AREA_Y     10.0
 #define BADGE_W         120.0
@@ -26,6 +19,7 @@ struct stArqSvg {
     int   nBadgesOut;
     int   nBadgesRip;
     int   nBadgesHab;
+    int   nBadgesNasc;
 };
 
 ArqSvg abrirSvg(const char *caminho) {
@@ -35,9 +29,10 @@ ArqSvg abrirSvg(const char *caminho) {
     svg->f = fopen(caminho, "w");
     if (!svg->f) { free(svg); return NULL; }
 
-    svg->nBadgesOut = 0;
-    svg->nBadgesRip = 0;
-    svg->nBadgesHab = 0;
+    svg->nBadgesOut  = 0;
+    svg->nBadgesRip  = 0;
+    svg->nBadgesHab  = 0;
+    svg->nBadgesNasc = 0;
 
     fprintf(svg->f,
             "<svg xmlns=\"http://www.w3.org/2000/svg\""
@@ -195,6 +190,15 @@ void svgBadgeHab(ArqSvg svg, const char *cpf) {
     bx += (BADGE_COLS + 1) * BADGE_GAP_X;
     s->nBadgesHab++;
     emitirBadge(s->f, bx, by, BADGE_W, BADGE_H, "#ffb6c1", "#333333", "h?", cpf);
+}
+
+void svgBadgeNasc(ArqSvg svg, const char *cpf) {
+    struct stArqSvg *s = svg;
+    double bx, by;
+    badgePos(s->nBadgesNasc, 0, &bx, &by);
+    bx += (BADGE_COLS + 1) * BADGE_GAP_X + BADGE_GAP_X;
+    s->nBadgesNasc++;
+    emitirBadge(s->f, bx, by, BADGE_W, BADGE_H, "#228B22", "white", "NASC", cpf);
 }
 
 void svgPosEndereco(double ax, double ay, double w, double h, char face,

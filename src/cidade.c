@@ -14,7 +14,7 @@ typedef struct {
     char   corStroke[32];
 } Quadra;
 
-// FNV-1a 64 bits 
+// FNV-1a 64 bits
 uint64_t cepParaChave(const char *cep) {
     uint64_t hash = 14695981039346656037ULL;
     for (const unsigned char *p = (const unsigned char *)cep; *p; p++) {
@@ -30,8 +30,8 @@ int lerGeo(const char *caminhoGeo, HashExtensivel hashQuadras) {
     if (!f) return -1;
 
     double swPad = 1.0;
-    char   fillPad[32]   = "white";
-    char   strokePad[32] = "black";
+    char   fillPad[32]   = "blue";  /* preenchimento padrão: azul  */
+    char   strokePad[32] = "gray";  /* borda padrão: cinza         */
 
     int inseridos = 0;
     char linha[512];
@@ -62,7 +62,7 @@ int lerGeo(const char *caminhoGeo, HashExtensivel hashQuadras) {
     return inseridos;
 }
 
-// callback para desenharQuadras — agora passa o CEP
+// callback para desenharQuadras
 static void cbDesenhar(uint64_t chave, void *valor, size_t tam, void *ctx) {
     (void)chave; (void)tam;
     Quadra *q  = valor;
@@ -97,12 +97,12 @@ size_t tamQuadra(void) {
     return sizeof(Quadra);
 }
 
-// acessores  
-const char *quadraGetCep    (const void *q) { return ((const Quadra *)q)->cep;      }
-double      quadraGetX      (const void *q) { return ((const Quadra *)q)->x;        }
-double      quadraGetY      (const void *q) { return ((const Quadra *)q)->y;        }
-double      quadraGetW      (const void *q) { return ((const Quadra *)q)->w;        }
-double      quadraGetH      (const void *q) { return ((const Quadra *)q)->h;        }
-double      quadraGetSw     (const void *q) { return ((const Quadra *)q)->sw;       }
-const char *quadraGetCorFill(const void *q) { return ((const Quadra *)q)->corFill;  }
-const char *quadraGetCorStroke(const void *q){return ((const Quadra *)q)->corStroke;}
+// acessores
+const char *quadraGetCep      (const void *q) { return ((const Quadra *)q)->cep;       }
+double      quadraGetX        (const void *q) { return ((const Quadra *)q)->x;         }
+double      quadraGetY        (const void *q) { return ((const Quadra *)q)->y;         }
+double      quadraGetW        (const void *q) { return ((const Quadra *)q)->w;         }
+double      quadraGetH        (const void *q) { return ((const Quadra *)q)->h;         }
+double      quadraGetSw       (const void *q) { return ((const Quadra *)q)->sw;        }
+const char *quadraGetCorFill  (const void *q) { return ((const Quadra *)q)->corFill;   }
+const char *quadraGetCorStroke(const void *q) { return ((const Quadra *)q)->corStroke; }
