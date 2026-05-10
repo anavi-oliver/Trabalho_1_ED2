@@ -1,23 +1,4 @@
 // src/main.c
-//
-// Ponto de entrada do programa ted.
-//
-// Fluxo:
-//   1. Parseia os argumentos de linha de comando.
-//   2. Cria os hashfiles de quadras e pessoas no diretório de saída.
-//   3. Lê o .geo e insere as quadras.
-//   4. Gera arq.svg com o estado inicial (só quadras).
-//   5. Se -pm: lê o .pm e insere os habitantes/moradores.
-//   6. Se -q: abre arq-qry.svg e arq-qry.txt,
-//             redesenha as quadras, processa o .qry e fecha os arquivos.
-//   7. Gera os arquivos .hfd (dump textual dos hashfiles).
-//   8. Fecha os hashfiles e libera a memória.
-//
-// Arquivos produzidos em DIR_SAIDA:
-//   Sempre : <stem>.svg
-//            <stem>_quadras.hf  /  <stem>_pessoas.hf   (hashfiles binários)
-//            <stem>_quadras.hfd /  <stem>_pessoas.hfd  (dump textual legível)
-//   Com -q : <stem>-<qry>.svg  +  <stem>-<qry>.txt
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,10 +26,9 @@ int main(int argc, char *argv[]) {
 
     const char *dirSaida = argsGetDirSaida(args);
     const char *geoPath  = argsGetGeoPath(args);
-    const char *pmPath   = argsGetPmPath(args);   /* NULL se ausente */
-    const char *qryPath  = argsGetQryPath(args);  /* NULL se ausente */
+    const char *pmPath   = argsGetPmPath(args);
+    const char *qryPath  = argsGetQryPath(args);
 
-    /* Nome-base combinado (ex: "t001-q1") e stem só do geo (ex: "t001") */
     char base[256], baseSoGeo[256];
     argsBaseSaida(args, base, sizeof(base));
     strncpy(baseSoGeo, base, sizeof(baseSoGeo) - 1);
@@ -59,6 +39,10 @@ int main(int argc, char *argv[]) {
     char hqPath[PATHLEN], hpPath[PATHLEN];
     snprintf(hqPath, PATHLEN, "%s/%s_quadras.hf", dirSaida, baseSoGeo);
     snprintf(hpPath, PATHLEN, "%s/%s_pessoas.hf", dirSaida, baseSoGeo);
+
+    /* Remove arquivos antigos para garantir estado limpo a cada execução */
+    remove(hqPath);
+    remove(hpPath);
 
     HashExtensivel hq = inicializarHash(hqPath, TAM_BUCKET, NULL);
     HashExtensivel hp = inicializarHash(hpPath, TAM_BUCKET, NULL);
