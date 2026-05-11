@@ -76,16 +76,10 @@ int main(int argc, char *argv[]) {
     fecharSvg(svgGeo);
 
     /* ── 5. Lê o .pm (opcional) ─────────────────────────────────────────── */
-if (pmPath) {
-    fprintf(stderr, "[DEBUG] Carregando pm: %s\n", pmPath);
-    int n = lerPm(pmPath, hp);
-    if (n < 0)
-        fprintf(stderr, "[DEBUG] ERRO: nao abriu '%s'\n", pmPath);
-    else
-        fprintf(stderr, "[DEBUG] lerPm carregou %d pessoas\n", n);
-} else {
-    fprintf(stderr, "[DEBUG] -pm NAO foi passado, hash vazio!\n");
-}
+    if (pmPath) {
+        if (lerPm(pmPath, hp) < 0)
+            fprintf(stderr, "Aviso: nao foi possivel abrir '%s'.\n", pmPath);
+    }
 
     /* ── 6. Processa o .qry (opcional) ──────────────────────────────────── */
     if (qryPath) {

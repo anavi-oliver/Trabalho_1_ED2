@@ -232,13 +232,10 @@ void cmdDspj(const char *cpf, CtxQry ctx) {
     uint8_t buf[TAM_MAX_VALOR];
 
     if (!buscarPessoa(c->hashPessoas, cpf, buf, NULL)) {
-        fprintf(stderr, "[DEBUG dspj] CPF '%s' NAO encontrado no hash de pessoas\n", cpf);
         return;
     }
-    fprintf(stderr, "[DEBUG dspj] CPF '%s' encontrado. morador=%d\n", cpf, pessoaIsMorador(buf));
 
     if (!pessoaIsMorador(buf)) {
-        fprintf(stderr, "[DEBUG dspj] CPF '%s' e sem-teto, pulando\n", cpf);
         return;
     }
 
@@ -250,15 +247,12 @@ void cmdDspj(const char *cpf, CtxQry ctx) {
             pessoaGetNum(buf), pessoaGetCompl(buf));
 
     uint8_t qbuf[TAM_MAX_VALOR];
-    if (!buscarQuadra(c->hashQuadras, pessoaGetCep(buf), qbuf, NULL)) {
-        fprintf(stderr, "[DEBUG dspj] Quadra CEP '%s' NAO encontrada\n", pessoaGetCep(buf));
-    } else {
+    if (buscarQuadra(c->hashQuadras, pessoaGetCep(buf), qbuf, NULL)) {
         double cx, cy;
         svgPosEndereco(quadraGetX(qbuf), quadraGetY(qbuf),
                        quadraGetW(qbuf), quadraGetH(qbuf),
                        pessoaGetFace(buf), pessoaGetNum(buf),
                        &cx, &cy);
-        fprintf(stderr, "[DEBUG dspj] Circulo em (%.2f, %.2f)\n", cx, cy);
         svgMarcaCirculo(c->svgSaida, cx, cy);
     }
 
