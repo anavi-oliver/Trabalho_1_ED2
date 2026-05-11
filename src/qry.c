@@ -52,10 +52,8 @@ void cmdRq(const char *cep, CtxQry ctx) {
     size_t  tam;
     if (!buscarQuadra(c->hashQuadras, cep, buf, &tam)) return;
 
-    /* X vermelho na âncora da quadra */
     svgMarcaX(c->svgSaida, quadraGetX(buf), quadraGetY(buf));
 
-    /* despeja moradores e os lista no TXT */
     CtxRq r = { cep, c };
     iterarHash(c->hashPessoas, cbRq, &r);
 
@@ -163,7 +161,6 @@ void cmdH(const char *cpf, CtxQry ctx) {
     else
         fprintf(c->txtSaida, "  sem-teto\n");
 
-    /* badge rosa lateral */
     svgBadgeHab(c->svgSaida, cpf);
 }
 
@@ -174,7 +171,6 @@ void cmdNasc(const char *cpf, const char *nome, const char *sobrenome,
 {
     struct stCtxQry *c = ctx;
     if (inserirHabitante(c->hashPessoas, cpf, nome, sobrenome, sexo, nasc)) {
-        /* badge verde lateral para cada nascimento */
         svgBadgeNasc(c->svgSaida, cpf);
     }
 }
@@ -206,7 +202,6 @@ void cmdRip(const char *cpf, CtxQry ctx) {
                 pessoaGetNum(buf), pessoaGetCompl(buf));
     }
 
-    /* badge preto lateral */
     svgBadgeRip(c->svgSaida, cpf);
 
     removerPessoa(c->hashPessoas, cpf);
@@ -235,8 +230,17 @@ void cmdMud(const char *cpf, const char *cep, char face,
 void cmdDspj(const char *cpf, CtxQry ctx) {
     struct stCtxQry *c = ctx;
     uint8_t buf[TAM_MAX_VALOR];
-    if (!buscarPessoa(c->hashPessoas, cpf, buf, NULL)) return;
-    if (!pessoaIsMorador(buf)) return;
+
+    if (!buscarPessoa(c->hashPessoas, cpf, buf, NULL)) {
+        fprintf(stderr, "[DEBUG dspj] CPF '%s' NAO encontrado no hash de pessoas\n", cpf);
+        return;
+    }
+    fprintf(stderr, "[DEBUG dspj] CPF '%s' encontrado. morador=%d\n", cpf, pessoaIsMorador(buf));
+
+    if (!pessoaIsMorador(buf)) {
+        fprintf(stderr, "[DEBUG dspj] CPF '%s' e sem-teto, pulando\n", cpf);
+        return;
+    }
 
     fprintf(c->txtSaida,
             "  cpf:%s nome:%s %s\n"
@@ -246,18 +250,19 @@ void cmdDspj(const char *cpf, CtxQry ctx) {
             pessoaGetNum(buf), pessoaGetCompl(buf));
 
     uint8_t qbuf[TAM_MAX_VALOR];
-    if (buscarQuadra(c->hashQuadras, pessoaGetCep(buf), qbuf, NULL)) {
+    if (!buscarQuadra(c->hashQuadras, pessoaGetCep(buf), qbuf, NULL)) {
+        fprintf(stderr, "[DEBUG dspj] Quadra CEP '%s' NAO encontrada\n", pessoaGetCep(buf));
+    } else {
         double cx, cy;
         svgPosEndereco(quadraGetX(qbuf), quadraGetY(qbuf),
                        quadraGetW(qbuf), quadraGetH(qbuf),
                        pessoaGetFace(buf), pessoaGetNum(buf),
                        &cx, &cy);
+        fprintf(stderr, "[DEBUG dspj] Circulo em (%.2f, %.2f)\n", cx, cy);
         svgMarcaCirculo(c->svgSaida, cx, cy);
     }
 
-    /* badge oliva lateral */
     svgBadgeOut(c->svgSaida, cpf);
-
     removerEndereco(c->hashPessoas, cpf);
 }
 
