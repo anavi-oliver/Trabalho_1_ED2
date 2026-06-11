@@ -1,5 +1,3 @@
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,7 +64,8 @@ void arquivo_contem_tag_svg(void) {
 
 /* svgQuadra deve emitir uma tag <rect */
 void quadra_emite_rect(void) {
-    svgQuadra(svg, 10.0, 50.0, 30.0, 20.0, 1.0, "white", "black");
+    /* NULL como cep — não precisa de rótulo neste teste */
+    svgQuadra(svg, 10.0, 50.0, 30.0, 20.0, 1.0, "white", "black", NULL);
     fecharSvg(svg);
     svg = NULL;
 
@@ -81,7 +80,7 @@ void quadra_emite_rect(void) {
 /* svgQuadra: coordenada y do rect deve ser y-h (âncora sudeste) */
 void quadra_y_corrigido_para_sudeste(void) {
     /* âncora y=50, h=20 → rect y deve ser 30.00 */
-    svgQuadra(svg, 10.0, 50.0, 30.0, 20.0, 1.0, "white", "black");
+    svgQuadra(svg, 10.0, 50.0, 30.0, 20.0, 1.0, "white", "black", NULL);
     fecharSvg(svg);
     svg = NULL;
 
@@ -209,9 +208,6 @@ void posEndereco_face_O(void) {
     TEST_ASSERT_EQUAL_DOUBLE(10.0, cx);
     TEST_ASSERT_EQUAL_DOUBLE(42.0, cy);
 }
-
-
-
 
 
 // ================================= MAIN =============================================

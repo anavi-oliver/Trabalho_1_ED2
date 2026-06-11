@@ -42,7 +42,6 @@
 #include "hash.h"
 #include "svg.h"
 
-/** Handle opaco do contexto de processamento — definido apenas em qry.c */
 typedef void *CtxQry;
 
 /**

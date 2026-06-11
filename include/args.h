@@ -12,7 +12,6 @@
  *   -pm arq.pm    Arquivo de pessoas/moradores. Opcional.
  */
 
-/** Handle opaco — a struct fica definida apenas em args.c */
 typedef void *Args;
 
 /**

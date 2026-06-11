@@ -41,8 +41,14 @@ void fecharSvg(ArqSvg svg);
  * @param w, h               Largura e altura.
  * @param sw                 Espessura da borda (stroke-width).
  * @param corFill, corStroke Cores de preenchimento e borda (nomes CSS).
+ * @param cep                Rótulo do CEP desenhado dentro da quadra
+ *                           (pode ser NULL para omitir o rótulo).
  */
-void svgQuadra(ArqSvg svg, double x, double y, double w, double h, double sw, const char *corFill, const char *corStroke);
+void svgQuadra(ArqSvg svg,
+               double x, double y, double w, double h,
+               double sw,
+               const char *corFill, const char *corStroke,
+               const char *cep);
 
 /**
  * @brief Escreve um <text> no SVG.
@@ -80,6 +86,28 @@ void svgMarcaQuadrado(ArqSvg svg, double x, double y, const char *cpf);
  */
 void svgMarcaCirculo(ArqSvg svg, double x, double y);
 
+/* ── badges laterais (painel direito do SVG) ────────────────────────────── */
+
+/**
+ * @brief Badge amarelo-escuro "OUT" — despejo. (cmd dspj)
+ */
+void svgBadgeOut(ArqSvg svg, const char *cpf);
+
+/**
+ * @brief Badge preto "R.I.P." — falecimento. (cmd rip)
+ */
+void svgBadgeRip(ArqSvg svg, const char *cpf);
+
+/**
+ * @brief Badge rosa "h?" — habitante consultado. (cmd h?)
+ */
+void svgBadgeHab(ArqSvg svg, const char *cpf);
+
+/**
+ * @brief Badge verde "NASC" — novo habitante registrado. (cmd nasc)
+ */
+void svgBadgeNasc(ArqSvg svg, const char *cpf);
+
 /* ── utilitários ─────────────────────────────────────────────────────────── */
 
 /**
@@ -91,6 +119,8 @@ void svgMarcaCirculo(ArqSvg svg, double x, double y);
  * @param num     Número da casa (distância da âncora ao longo da face).
  * @param cx, cy  Coordenadas SVG resultantes (saída).
  */
-void svgPosEndereco(double ax, double ay, double w, double h, char face, double num, double *cx, double *cy);
+void svgPosEndereco(double ax, double ay, double w, double h,
+                    char face, double num,
+                    double *cx, double *cy);
 
-#endif 
+#endif /* SVG_H */
