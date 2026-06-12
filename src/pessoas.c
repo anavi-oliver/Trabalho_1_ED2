@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "unity/src/unity.h"
 #include "pessoas.h"
 
 typedef struct {
